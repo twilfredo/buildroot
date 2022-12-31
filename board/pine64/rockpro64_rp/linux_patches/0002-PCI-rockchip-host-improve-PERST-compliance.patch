@@ -1,0 +1,62 @@
+From bdf4e2de72a3bc453b9ba1c9868d2ccab993465f Mon Sep 17 00:00:00 2001
+From: Wilfred Mallawa <wilfred.mallawa@wdc.com>
+Date: Wed, 26 Jul 2023 18:38:04 +1000
+Subject: [PATCH 2/3] PCI: rockchip-host: improve  PERST# compliance.
+
+The PCIe r5.0, (Section 3.1.4) states that PERST# should be asserted
+for a minimum of 100uS. Make sure it meets compliance by adding
+delay between assertion and de-assertion.
+
+Signed-off-by: Wilfred Mallawa <wilfred.mallawa@wdc.com>
+---
+ drivers/pci/controller/pcie-rockchip-host.c | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/pci/controller/pcie-rockchip-host.c b/drivers/pci/controller/pcie-rockchip-host.c
+index 2438bc9b3a1a..07aeee132ae3 100644
+--- a/drivers/pci/controller/pcie-rockchip-host.c
++++ b/drivers/pci/controller/pcie-rockchip-host.c
+@@ -286,6 +286,20 @@ static void rockchip_pcie_set_power_limit(struct rockchip_pcie *rockchip)
+ 	rockchip_pcie_write(rockchip, status, PCIE_RC_CONFIG_DCR);
+ }
+ 
++static int rockchip_pcie_host_issue_perst(struct rockchip_pcie *rockchip)
++{
++	if (!rockchip->ep_gpio)
++		return -ENODEV;
++
++	dev_info(rockchip->dev, "Asserting PERST\n");
++	gpiod_set_value_cansleep(rockchip->ep_gpio, 0);
++	/* PERST# minimum assertion time is 100uS (PCIe r5.0, 3.1.4) */
++	msleep(100);
++	gpiod_set_value_cansleep(rockchip->ep_gpio, 1);
++
++	return 0;
++}
++
+ /**
+  * rockchip_pcie_host_init_port - Initialize hardware
+  * @rockchip: PCIe port information
+@@ -296,8 +310,6 @@ static int rockchip_pcie_host_init_port(struct rockchip_pcie *rockchip)
+ 	int err, i = MAX_LANE_NUM;
+ 	u32 status;
+ 
+-	gpiod_set_value_cansleep(rockchip->ep_gpio, 0);
+-
+ 	err = rockchip_pcie_init_port(rockchip);
+ 	if (err)
+ 		return err;
+@@ -324,7 +336,9 @@ static int rockchip_pcie_host_init_port(struct rockchip_pcie *rockchip)
+ 	rockchip_pcie_write(rockchip, PCIE_CLIENT_LINK_TRAIN_ENABLE,
+ 			    PCIE_CLIENT_CONFIG);
+ 
+-	gpiod_set_value_cansleep(rockchip->ep_gpio, 1);
++	err = rockchip_pcie_host_issue_perst(rockchip);
++	if (err)
++		return err;
+ 
+ 	/* 500ms timeout value should be enough for Gen1/2 training */
+ 	err = readl_poll_timeout(rockchip->apb_base + PCIE_CLIENT_BASIC_STATUS1,
+-- 
+2.41.0
+
