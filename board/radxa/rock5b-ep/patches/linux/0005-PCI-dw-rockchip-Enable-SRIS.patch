@@ -1,7 +1,7 @@
-From 1a0a614b532da145847cbec4fe9959e190a3c273 Mon Sep 17 00:00:00 2001
+From e1cefa730224c6c3a519354eed0d020be57a44b8 Mon Sep 17 00:00:00 2001
 From: Niklas Cassel <cassel@kernel.org>
 Date: Fri, 7 Feb 2025 13:25:30 +0100
-Subject: [PATCH 6/9] PCI: dw-rockchip: Enable SRIS
+Subject: [PATCH 05/19] PCI: dw-rockchip: Enable SRIS
 
 At least when using an AMD host, this shows LTSSM being in L0.
 On AMD, without SRIS, LTSSM is not stable in L0.

@@ -1,7 +1,7 @@
-From 74b1ccc80b622beb14a17c6014d063fcfbe137bd Mon Sep 17 00:00:00 2001
+From 536c80e6548ae9cc7269dfe5731665a983054d34 Mon Sep 17 00:00:00 2001
 From: Shawn Lin <shawn.lin@rock-chips.com>
 Date: Thu, 17 Apr 2025 08:35:11 +0800
-Subject: [PATCH 4/9] PCI: dw-rockchip: Move
+Subject: [PATCH 03/19] PCI: dw-rockchip: Move
  rockchip_pcie_ep_hide_broken_ats_cap_rk3588() to .init()
 
 There is no reason to call rockchip_pcie_ep_hide_broken_ats_cap_rk3588()

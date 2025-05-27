@@ -1,0 +1,145 @@
+From 5322c29c32f0146704bd1e5ccfc7b2298073c188 Mon Sep 17 00:00:00 2001
+From: Wilfred Mallawa <wilfred.mallawa@wdc.com>
+Date: Thu, 24 Apr 2025 15:13:53 +1000
+Subject: [PATCH 19/19] nvmet: simplify the nvmet_req_init() interface
+
+Now that a submission queue holds a reference to its completion queue,
+there is no need to pass the cq argument to nvmet_req_init(), so remove
+it.
+
+Signed-off-by: Wilfred Mallawa <wilfred.mallawa@wdc.com>
+Reviewed-by: Chaitanya Kulkarni <kch@nvidia.com>
+Reviewed-by: Damien Le Moal <dlemoal@kernel.org>
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ drivers/nvme/target/core.c    | 6 +++---
+ drivers/nvme/target/fc.c      | 6 ++----
+ drivers/nvme/target/loop.c    | 6 ++----
+ drivers/nvme/target/nvmet.h   | 4 ++--
+ drivers/nvme/target/pci-epf.c | 3 +--
+ drivers/nvme/target/rdma.c    | 3 +--
+ drivers/nvme/target/tcp.c     | 3 +--
+ 7 files changed, 12 insertions(+), 19 deletions(-)
+
+diff --git a/drivers/nvme/target/core.c b/drivers/nvme/target/core.c
+index 2b02b2f939a5..db7b17d1094e 100644
+--- a/drivers/nvme/target/core.c
++++ b/drivers/nvme/target/core.c
+@@ -1156,13 +1156,13 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
+ 	return ret;
+ }
+ 
+-bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
+-		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops)
++bool nvmet_req_init(struct nvmet_req *req, struct nvmet_sq *sq,
++		const struct nvmet_fabrics_ops *ops)
+ {
+ 	u8 flags = req->cmd->common.flags;
+ 	u16 status;
+ 
+-	req->cq = cq;
++	req->cq = sq->cq;
+ 	req->sq = sq;
+ 	req->ops = ops;
+ 	req->sg = NULL;
+diff --git a/drivers/nvme/target/fc.c b/drivers/nvme/target/fc.c
+index 2e813e51549c..a82cff9a8064 100644
+--- a/drivers/nvme/target/fc.c
++++ b/drivers/nvme/target/fc.c
+@@ -2534,10 +2534,8 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
+ 	fod->data_sg = NULL;
+ 	fod->data_sg_cnt = 0;
+ 
+-	ret = nvmet_req_init(&fod->req,
+-				&fod->queue->nvme_cq,
+-				&fod->queue->nvme_sq,
+-				&nvmet_fc_tgt_fcp_ops);
++	ret = nvmet_req_init(&fod->req, &fod->queue->nvme_sq,
++			&nvmet_fc_tgt_fcp_ops);
+ 	if (!ret) {
+ 		/* bad SQE content or invalid ctrl state */
+ 		/* nvmet layer has already called op done to send rsp. */
+diff --git a/drivers/nvme/target/loop.c b/drivers/nvme/target/loop.c
+index 2c60138c6a3c..78212b4793c9 100644
+--- a/drivers/nvme/target/loop.c
++++ b/drivers/nvme/target/loop.c
+@@ -148,8 +148,7 @@ static blk_status_t nvme_loop_queue_rq(struct blk_mq_hw_ctx *hctx,
+ 	nvme_start_request(req);
+ 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
+ 	iod->req.port = queue->ctrl->port;
+-	if (!nvmet_req_init(&iod->req, &queue->nvme_cq,
+-			&queue->nvme_sq, &nvme_loop_ops))
++	if (!nvmet_req_init(&iod->req, &queue->nvme_sq, &nvme_loop_ops))
+ 		return BLK_STS_OK;
+ 
+ 	if (blk_rq_nr_phys_segments(req)) {
+@@ -181,8 +180,7 @@ static void nvme_loop_submit_async_event(struct nvme_ctrl *arg)
+ 	iod->cmd.common.command_id = NVME_AQ_BLK_MQ_DEPTH;
+ 	iod->cmd.common.flags |= NVME_CMD_SGL_METABUF;
+ 
+-	if (!nvmet_req_init(&iod->req, &queue->nvme_cq, &queue->nvme_sq,
+-			&nvme_loop_ops)) {
++	if (!nvmet_req_init(&iod->req, &queue->nvme_sq, &nvme_loop_ops)) {
+ 		dev_err(ctrl->ctrl.device, "failed async event work\n");
+ 		return;
+ 	}
+diff --git a/drivers/nvme/target/nvmet.h b/drivers/nvme/target/nvmet.h
+index d3795b09fcc4..df69a9dee71c 100644
+--- a/drivers/nvme/target/nvmet.h
++++ b/drivers/nvme/target/nvmet.h
+@@ -561,8 +561,8 @@ u32 nvmet_fabrics_admin_cmd_data_len(struct nvmet_req *req);
+ u16 nvmet_parse_fabrics_io_cmd(struct nvmet_req *req);
+ u32 nvmet_fabrics_io_cmd_data_len(struct nvmet_req *req);
+ 
+-bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
+-		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops);
++bool nvmet_req_init(struct nvmet_req *req, struct nvmet_sq *sq,
++		const struct nvmet_fabrics_ops *ops);
+ void nvmet_req_uninit(struct nvmet_req *req);
+ size_t nvmet_req_transfer_len(struct nvmet_req *req);
+ bool nvmet_check_transfer_len(struct nvmet_req *req, size_t len);
+diff --git a/drivers/nvme/target/pci-epf.c b/drivers/nvme/target/pci-epf.c
+index 98126f3862af..4bfd83f1026b 100644
+--- a/drivers/nvme/target/pci-epf.c
++++ b/drivers/nvme/target/pci-epf.c
+@@ -1614,8 +1614,7 @@ static void nvmet_pci_epf_exec_iod_work(struct work_struct *work)
+ 		goto complete;
+ 	}
+ 
+-	if (!nvmet_req_init(req, &iod->cq->nvme_cq, &iod->sq->nvme_sq,
+-			    &nvmet_pci_epf_fabrics_ops))
++	if (!nvmet_req_init(req, &iod->sq->nvme_sq, &nvmet_pci_epf_fabrics_ops))
+ 		goto complete;
+ 
+ 	iod->data_len = nvmet_req_transfer_len(req);
+diff --git a/drivers/nvme/target/rdma.c b/drivers/nvme/target/rdma.c
+index 2e5c32298818..432bdf7cd49e 100644
+--- a/drivers/nvme/target/rdma.c
++++ b/drivers/nvme/target/rdma.c
+@@ -976,8 +976,7 @@ static void nvmet_rdma_handle_command(struct nvmet_rdma_queue *queue,
+ 		cmd->send_sge.addr, cmd->send_sge.length,
+ 		DMA_TO_DEVICE);
+ 
+-	if (!nvmet_req_init(&cmd->req, &queue->nvme_cq,
+-			&queue->nvme_sq, &nvmet_rdma_ops))
++	if (!nvmet_req_init(&cmd->req, &queue->nvme_sq, &nvmet_rdma_ops))
+ 		return;
+ 
+ 	status = nvmet_rdma_map_sgl(cmd);
+diff --git a/drivers/nvme/target/tcp.c b/drivers/nvme/target/tcp.c
+index 819765cc9c23..4f9fa1da45f6 100644
+--- a/drivers/nvme/target/tcp.c
++++ b/drivers/nvme/target/tcp.c
+@@ -1077,8 +1077,7 @@ static int nvmet_tcp_done_recv_pdu(struct nvmet_tcp_queue *queue)
+ 	req = &queue->cmd->req;
+ 	memcpy(req->cmd, nvme_cmd, sizeof(*nvme_cmd));
+ 
+-	if (unlikely(!nvmet_req_init(req, &queue->nvme_cq,
+-			&queue->nvme_sq, &nvmet_tcp_ops))) {
++	if (unlikely(!nvmet_req_init(req, &queue->nvme_sq, &nvmet_tcp_ops))) {
+ 		pr_err("failed cmd %p id %d opcode %d, data_len: %d, status: %04x\n",
+ 			req->cmd, req->cmd->common.command_id,
+ 			req->cmd->common.opcode,
+-- 
+2.49.0
+

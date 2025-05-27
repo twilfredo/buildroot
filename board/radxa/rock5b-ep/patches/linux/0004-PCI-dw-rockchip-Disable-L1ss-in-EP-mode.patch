@@ -1,7 +1,7 @@
-From 2af7c26b7a62140aaefae5b2b800f6721e0948b3 Mon Sep 17 00:00:00 2001
+From cf51c51a651e2cb9fc9f0d57e2986b6252cec30b Mon Sep 17 00:00:00 2001
 From: Niklas Cassel <cassel@kernel.org>
 Date: Thu, 17 Apr 2025 14:12:11 +0200
-Subject: [PATCH 5/9] PCI: dw-rockchip: Disable L1ss in EP mode
+Subject: [PATCH 04/19] PCI: dw-rockchip: Disable L1ss in EP mode
 
 Disable L1 substates in EP mode.
 
