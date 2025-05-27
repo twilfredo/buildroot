@@ -1,7 +1,7 @@
-From e6d2ea6ee8b1a8a94d95476f0be2d70bf2073bdb Mon Sep 17 00:00:00 2001
+From fe85b357e30c471aefa830addd594751e1f93649 Mon Sep 17 00:00:00 2001
 From: Damien Le Moal <dlemoal@kernel.org>
 Date: Tue, 18 Mar 2025 08:53:39 +0900
-Subject: [PATCH 8/9] arm64: dts: dw-rockchip: Limit EP to single lane
+Subject: [PATCH 07/19] arm64: dts: dw-rockchip: Limit EP to single lane
 
 Signed-off-by: Damien Le Moal <dlemoal@kernel.org>
 ---

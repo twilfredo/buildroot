@@ -1,7 +1,7 @@
-From e30aad1bdb497cbe00e4c7b742fdd8a0eed72eb1 Mon Sep 17 00:00:00 2001
+From d7b8125904cb667f579ac29d990945527e7739f5 Mon Sep 17 00:00:00 2001
 From: Shawn Lin <shawn.lin@rock-chips.com>
 Date: Thu, 17 Apr 2025 08:35:09 +0800
-Subject: [PATCH 2/9] PCI: dw-rockchip: Remove PCIE_L0S_ENTRY check from
+Subject: [PATCH 01/19] PCI: dw-rockchip: Remove PCIE_L0S_ENTRY check from
  rockchip_pcie_link_up()
 
 Two mistakes here:

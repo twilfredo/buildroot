@@ -1,7 +1,7 @@
-From c826334a483bce353cb3357a38faeba1f2e43600 Mon Sep 17 00:00:00 2001
+From 7e4c71672f8542a0a3720063977a952f9dbb0121 Mon Sep 17 00:00:00 2001
 From: Shawn Lin <shawn.lin@rock-chips.com>
 Date: Thu, 17 Apr 2025 08:35:10 +0800
-Subject: [PATCH 3/9] PCI: dw-rockchip: Enable L0S capability
+Subject: [PATCH 02/19] PCI: dw-rockchip: Enable L0S capability
 
 L0S capability isn't enabled on all SoCs by default, so enabling it
 in order to make ASPM L0S work on Rockchip platforms. We have been
