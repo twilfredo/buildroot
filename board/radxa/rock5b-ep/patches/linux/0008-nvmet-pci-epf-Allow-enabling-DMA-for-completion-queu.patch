@@ -1,7 +1,8 @@
-From acb7810beed512f4fa015da9d563d392d32e6943 Mon Sep 17 00:00:00 2001
+From b4a5680668b0a2ba0d96d75be316191014532e1e Mon Sep 17 00:00:00 2001
 From: Damien Le Moal <dlemoal@kernel.org>
 Date: Thu, 24 Apr 2025 13:30:04 +0900
-Subject: [PATCH 9/9] nvmet: pci-epf: Allow enabling DMA for completion queues
+Subject: [PATCH 08/19] nvmet: pci-epf: Allow enabling DMA for completion
+ queues
 
 Add the endpoint configfs cq_dma attribute to allow enabling DMA
 transfers of command completion entries in a controller completion
@@ -9,14 +10,14 @@ queues, instead of using MMIO by default.
 
 Signed-off-by: Damien Le Moal <dlemoal@kernel.org>
 ---
- drivers/nvme/target/pci-epf.c | 80 +++++++++++++++++++++++++++--------
- 1 file changed, 62 insertions(+), 18 deletions(-)
+ drivers/nvme/target/pci-epf.c | 82 +++++++++++++++++++++++++++--------
+ 1 file changed, 64 insertions(+), 18 deletions(-)
 
 diff --git a/drivers/nvme/target/pci-epf.c b/drivers/nvme/target/pci-epf.c
-index 7fab7f3d79b7..808574a9846a 100644
+index 7123c855b5a6..4390042a5312 100644
 --- a/drivers/nvme/target/pci-epf.c
 +++ b/drivers/nvme/target/pci-epf.c
-@@ -166,6 +166,7 @@ struct nvmet_pci_epf_ctrl {
+@@ -165,6 +165,7 @@ struct nvmet_pci_epf_ctrl {
  	struct nvmet_pci_epf_queue	*sq;
  	struct nvmet_pci_epf_queue	*cq;
  	unsigned int			sq_ab;
@@ -24,7 +25,7 @@ index 7fab7f3d79b7..808574a9846a 100644
  
  	mempool_t			iod_pool;
  	void				*bar;
-@@ -222,6 +223,7 @@ struct nvmet_pci_epf {
+@@ -221,6 +222,7 @@ struct nvmet_pci_epf {
  	__le16				portid;
  	char				subsysnqn[NVMF_NQN_SIZE];
  	unsigned int			mdts_kb;
@@ -32,7 +33,7 @@ index 7fab7f3d79b7..808574a9846a 100644
  };
  
  static inline u32 nvmet_pci_epf_bar_read32(struct nvmet_pci_epf_ctrl *ctrl,
-@@ -1299,22 +1301,26 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
+@@ -1300,22 +1302,26 @@ static u16 nvmet_pci_epf_create_cq(struct nvmet_ctrl *tctrl,
  	if (status != NVME_SC_SUCCESS)
  		goto err;
  
@@ -74,17 +75,21 @@ index 7fab7f3d79b7..808574a9846a 100644
  	}
  
  	set_bit(NVMET_PCI_EPF_Q_LIVE, &cq->flags);
-@@ -1345,7 +1351,8 @@ static u16 nvmet_pci_epf_delete_cq(struct nvmet_ctrl *tctrl, u16 cqid)
+@@ -1351,9 +1357,12 @@ static u16 nvmet_pci_epf_delete_cq(struct nvmet_ctrl *tctrl, u16 cqid)
+ 
  	cancel_delayed_work_sync(&cq->work);
  	nvmet_pci_epf_drain_queue(cq);
- 	nvmet_pci_epf_remove_irq_vector(ctrl, cq->vector);
++
+ 	if (test_and_clear_bit(NVMET_PCI_EPF_Q_IRQ_ENABLED, &cq->flags))
+ 		nvmet_pci_epf_remove_irq_vector(ctrl, cq->vector);
 -	nvmet_pci_epf_mem_unmap(ctrl->nvme_epf, &cq->pci_map);
++
 +	if (!ctrl->cq_dma)
 +		nvmet_pci_epf_mem_unmap(ctrl->nvme_epf, &cq->pci_map);
  
  	return NVME_SC_SUCCESS;
  }
-@@ -1782,8 +1789,13 @@ static void nvmet_pci_epf_cq_work(struct work_struct *work)
+@@ -1789,8 +1798,13 @@ static void nvmet_pci_epf_cq_work(struct work_struct *work)
  			le64_to_cpu(cqe->result.u64), cq->head, cq->tail,
  			cq->phase);
  
@@ -100,7 +105,7 @@ index 7fab7f3d79b7..808574a9846a 100644
  
  		cq->tail++;
  		if (cq->tail >= cq->depth) {
-@@ -2014,6 +2026,7 @@ static int nvmet_pci_epf_create_ctrl(struct nvmet_pci_epf *nvme_epf,
+@@ -2021,6 +2035,7 @@ static int nvmet_pci_epf_create_ctrl(struct nvmet_pci_epf *nvme_epf,
  	mutex_init(&ctrl->irq_lock);
  	ctrl->nvme_epf = nvme_epf;
  	ctrl->mdts = nvme_epf->mdts_kb * SZ_1K;
@@ -108,7 +113,7 @@ index 7fab7f3d79b7..808574a9846a 100644
  	INIT_DELAYED_WORK(&ctrl->poll_cc, nvmet_pci_epf_poll_cc_work);
  	INIT_DELAYED_WORK(&ctrl->poll_sqs, nvmet_pci_epf_poll_sqs_work);
  
-@@ -2558,10 +2571,41 @@ static ssize_t nvmet_pci_epf_mdts_kb_store(struct config_item *item,
+@@ -2565,10 +2580,41 @@ static ssize_t nvmet_pci_epf_mdts_kb_store(struct config_item *item,
  
  CONFIGFS_ATTR(nvmet_pci_epf_, mdts_kb);
  

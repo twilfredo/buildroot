@@ -1,8 +1,8 @@
-From 0e9d5e831451c537d2b7d1b448f29877e6107928 Mon Sep 17 00:00:00 2001
+From cce418e09cfc7ca6a38a6c985d9a40703d6d5f2f Mon Sep 17 00:00:00 2001
 From: Niklas Cassel <cassel@kernel.org>
 Date: Thu, 6 Feb 2025 09:11:29 +0100
-Subject: [PATCH 7/9] arm64: dts: dw-rockchip: Disable iommu for pcie3x4 RC and
- EP
+Subject: [PATCH 06/19] arm64: dts: dw-rockchip: Disable iommu for pcie3x4 RC
+ and EP
 
 Signed-off-by: Niklas Cassel <cassel@kernel.org>
 Signed-off-by: Damien Le Moal <dlemoal@kernel.org>
